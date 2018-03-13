@@ -73,6 +73,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.ByteBuffer;
+import java.nio.channels.FileChannel;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -86,6 +87,9 @@ import java.util.TreeMap;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+
+import static android.hardware.camera2.CameraCharacteristics.SENSOR_INFO_COLOR_FILTER_ARRANGEMENT;
+import static android.hardware.camera2.CameraCharacteristics.SENSOR_INFO_WHITE_LEVEL;
 
 /**
  * A fragment that demonstrates use of the Camera2 API to capture RAW and JPEG photos.
@@ -1388,16 +1392,31 @@ public class Camera2RawFragment extends Fragment
                 }
                 case ImageFormat.RAW_SENSOR: {
                     DngCreator dngCreator = new DngCreator(mCharacteristics, mCaptureResult);
+                    int pattern = mCharacteristics.get(SENSOR_INFO_COLOR_FILTER_ARRANGEMENT);
+                    int whiteLevel = mCharacteristics.get(SENSOR_INFO_WHITE_LEVEL);
                     FileOutputStream output = null;
+                    FileOutputStream bayerOutput = null;
+                    FileChannel bayerChannel = null;
                     try {
                         output = new FileOutputStream(mFile);
                         dngCreator.writeImage(output, mImage);
+
+                        bayerOutput = new FileOutputStream(mFile + ".raw");
+                        bayerChannel = bayerOutput.getChannel();
+                        Image.Plane[] planes = mImage.getPlanes();
+                        if (planes == null || planes.length <= 0) {
+                            throw new IllegalArgumentException("Image with no planes passed to writeImage");
+                        }
+
+                        bayerChannel.write(planes[0].getBuffer());
+                        bayerChannel.close();
                         success = true;
                     } catch (IOException e) {
                         e.printStackTrace();
                     } finally {
                         mImage.close();
                         closeOutput(output);
+                        closeOutput(bayerOutput);
                     }
                     break;
                 }
