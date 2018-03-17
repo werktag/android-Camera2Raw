@@ -1407,6 +1407,8 @@ public class Camera2RawFragment extends Fragment
                         if (planes == null || planes.length <= 0) {
                             throw new IllegalArgumentException("Image with no planes passed to writeImage");
                         }
+                        boolean isDirect = planes[0].getBuffer().isDirect();
+                        boolean hasArray = planes[0].getBuffer().hasArray();
 
                         bayerChannel.write(planes[0].getBuffer());
                         bayerChannel.close();
